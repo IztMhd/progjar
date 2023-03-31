@@ -66,7 +66,7 @@ class Server(threading.Thread):
 		threading.Thread.__init__(self)
 
 	def run(self):
-		self.my_socket.bind(('0.0.0.0', 8443))
+		self.my_socket.bind(('0.0.0.0', 2222))
 		self.my_socket.listen(200)
 		while True:
 			self.connection, self.client_address = self.my_socket.accept()
@@ -88,3 +88,4 @@ def main():
 
 if __name__=="__main__":
 	main()
+

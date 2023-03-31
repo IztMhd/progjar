@@ -4,13 +4,13 @@ import threading
 import time
 import sys
 import logging
-from http import HttpServer
 
-httpserver = HttpServer()
 
 
 class ProcessTheClient(threading.Thread):
-	def __init__(self, connection, address):
+	def __init__(self, connection, address, destination_sock_address):
+		self.destination_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.destination_sock.connect(destination_sock_address)
 		self.connection = connection
 		self.address = address
 		threading.Thread.__init__(self)
@@ -19,24 +19,14 @@ class ProcessTheClient(threading.Thread):
 		rcv=""
 		while True:
 			try:
-				data = self.connection.recv(32)
+				data = self.connection.recv(8192)
 				if data:
-					#merubah input dari socket (berupa bytes) ke dalam string
-					#agar bisa mendeteksi \r\n
-					d = data.decode()
-					rcv=rcv+d
-					if rcv[-2:]=='\r\n':
-						#end of command, proses string
-						logging.warning("data dari client: {}" . format(rcv))
-						hasil = httpserver.proses(rcv)
-						#hasil akan berupa bytes
-						#untuk bisa ditambahi dengan string, maka string harus di encode
-						hasil=hasil+"\r\n\r\n".encode()
-						logging.warning("balas ke  client: {}" . format(hasil))
-						#hasil sudah dalam bentuk bytes
-						self.connection.sendall(hasil)
-						rcv=""
-						self.connection.close()
+					self.destination_sock.sendall(data)
+					data_balasan = self.destination_sock.recv(8192)
+					self.connection.sendall(data_balasan)
+					logging.warning(data)
+					logging.warning(data_balasan)
+
 				else:
 					break
 			except OSError as e:
@@ -50,16 +40,18 @@ class Server(threading.Thread):
 		self.the_clients = []
 		self.my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+		self.destination_sock_address = ('localhost',8889)
 		threading.Thread.__init__(self)
 
 	def run(self):
-		self.my_socket.bind(('0.0.0.0', 2222))
-		self.my_socket.listen(200)
+		self.my_socket.bind(('0.0.0.0', 18000))
+		self.my_socket.listen(1)
 		while True:
 			self.connection, self.client_address = self.my_socket.accept()
 			logging.warning("connection from {}".format(self.client_address))
 
-			clt = ProcessTheClient(self.connection, self.client_address)
+			clt = ProcessTheClient(self.connection, self.client_address,self.destination_sock_address)
 			clt.start()
 			self.the_clients.append(clt)
 
